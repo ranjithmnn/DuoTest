@@ -8,40 +8,40 @@
 import SwiftUI
 
 struct ItemContainerView: View {
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    
+    @available(anyAppleOS 27.1, *)
+    @State private var hinge: DeviceHinge?
     
     let item: DeviceItem = DeviceRepository.iPhone18Pro
 
     var body: some View {
         NavigationStack {
-            if horizontalSizeClass == .regular {
-                adaptiveLayoutView()
-            } else {
-                ItemIntroView(item: item, isInline: false)
-            }
-        }
-    }
-
-    @ViewBuilder
-    func adaptiveLayoutView() -> some View {
-        if #available(anyAppleOS 27.1, *) {
-            ArrangementView(
-                primary: {
-                    ItemIntroView(item: item, isInline: true)
-                },
-                secondary: {
-                    ItemDetailsView(item: item)
+            if #available(anyAppleOS 27.1, *) {
+                if hinge?.status == .closed {
+                    ScrollView {
+                        ItemIntroView(item: item)
+                        ItemDetailsView(item: item)
+                    }
+                    .ignoresSafeArea()
+                    .onHingeChange { oldContext, newContext in
+                        hinge = newContext.hinge
+                    }
+                } else {
+                    ArrangementView(
+                        primary: {
+                            ItemIntroView(item: item)
+                                
+                        },
+                        secondary: {
+                            ItemDetailsView(item: item)
+                                .ignoresSafeArea()
+                        }
+                    )
+                    .onHingeChange { oldContext, newContext in
+                        hinge = newContext.hinge
+                    }
+//                    .arrangementViewStyle(.split.axes(.horizontal))
                 }
-            )
-        } else {
-            HStack(spacing: 0) {
-                ItemIntroView(item: item, isInline: true)
-                    .frame(maxWidth: .infinity)
-
-                Divider()
-
-                ItemDetailsView(item: item)
-                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -49,7 +49,6 @@ struct ItemContainerView: View {
 
 struct ItemIntroView: View {
     let item: DeviceItem
-    let isInline: Bool
 
     var body: some View {
         ScrollView {
@@ -95,25 +94,6 @@ struct ItemIntroView: View {
                         .background(Color(.secondarySystemBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
-                }
-
-                if !isInline {
-                    NavigationLink {
-                        ItemDetailsView(item: item)
-                    } label: {
-                        HStack {
-                            Text("Full Tech Specifications")
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                        }
-                        .fontWeight(.semibold)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .padding(.top, 8)
                 }
             }
             .padding()
