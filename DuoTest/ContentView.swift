@@ -8,47 +8,83 @@
 import SwiftUI
 
 struct ItemContainerView: View {
-    
-    @available(anyAppleOS 27.1, *)
-    @State private var hinge: DeviceHinge?
-    
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
     let item: DeviceItem = DeviceRepository.iPhone18Pro
+
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
 
     var body: some View {
         NavigationStack {
             if #available(anyAppleOS 27.1, *) {
-                if hinge?.status == .closed {
-                    ScrollView {
-                        ItemIntroView(item: item)
+                DuoContainerView(item: item)
+            } else {
+                if isPad || verticalSizeClass == .compact {
+                    HStack(spacing: 0) {
+                        ItemIntroView(item: item, showsNavigationLink: false)
+                            .frame(maxWidth: .infinity)
+                        Divider()
                         ItemDetailsView(item: item)
-                    }
-                    .ignoresSafeArea()
-                    .onHingeChange { oldContext, newContext in
-                        hinge = newContext.hinge
+                            .frame(maxWidth: .infinity)
                     }
                 } else {
-                    ArrangementView(
-                        primary: {
-                            ItemIntroView(item: item)
-                                
-                        },
-                        secondary: {
-                            ItemDetailsView(item: item)
-                                .ignoresSafeArea()
-                        }
-                    )
-                    .onHingeChange { oldContext, newContext in
-                        hinge = newContext.hinge
-                    }
-//                    .arrangementViewStyle(.split.axes(.horizontal))
+                    ItemIntroView(item: item, showsNavigationLink: true)
                 }
             }
         }
     }
 }
 
+@available(anyAppleOS 27.1, *)
+private struct DuoContainerView: View {
+    let item: DeviceItem
+
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var hinge: DeviceHinge?
+
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
+    private var isSingleScreen: Bool {
+        if isPad {
+            return false
+        }
+        if let hinge {
+            return hinge.status == .closed
+        }
+        return verticalSizeClass == .regular && horizontalSizeClass == .compact
+    }
+
+    var body: some View {
+        Group {
+            if isSingleScreen {
+                ItemIntroView(item: item, showsNavigationLink: true)
+            } else {
+                ArrangementView(
+                    primary: {
+                        ItemIntroView(item: item, showsNavigationLink: false)
+                    },
+                    secondary: {
+                        ItemDetailsView(item: item)
+                            .ignoresSafeArea()
+                    }
+                )
+            }
+        }
+        .onHingeChange { oldContext, newContext in
+            hinge = newContext.hinge
+        }
+    }
+}
+
 struct ItemIntroView: View {
     let item: DeviceItem
+    var showsNavigationLink: Bool = false
 
     var body: some View {
         ScrollView {
@@ -95,8 +131,37 @@ struct ItemIntroView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                 }
+
+                if showsNavigationLink {
+                    NavigationLink(destination: ItemDetailsView(item: item)) {
+                        HStack {
+                            Text("View Full Specifications")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .padding(.top, 4)
+                }
             }
             .padding()
+        }
+        .navigationTitle(item.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsNavigationLink {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: ItemDetailsView(item: item)) {
+                        Text("Specs")
+                            .fontWeight(.medium)
+                    }
+                }
+            }
         }
     }
 }
@@ -144,6 +209,8 @@ struct ItemDetailsView: View {
             }
             .padding()
         }
+        .navigationTitle("Specifications")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
